@@ -20,7 +20,7 @@ class EndPoint(object):
 class FlowSolver(object):
 
     def solve(self, board):
-        pass
+        return
 
 # Flow board and moves
 class FlowPuzzle(object):
@@ -69,7 +69,7 @@ class FlowPuzzle(object):
                 
         return moves
 
-    # get a random move
+    # get a random move by moving a starting or ending point
     def get_random_move(self):
         # get a random move for a random color
         color = randint(0,len(self.starting_boards[self.size])-1)
@@ -100,8 +100,7 @@ class FlowPuzzle(object):
                 return False
         return True
 
-    # check if a particular color is already solved
-    # floow fill
+    # check if a particular color is already solved using flood fill
     def is_solved_color(self, color, row, col, end):
         if (row, col) == end:
             return True
@@ -115,17 +114,6 @@ class FlowPuzzle(object):
             self.is_solved_color(color, row-1, col, end) or
             self.is_solved_color(color, row, col+1, end) or
             self.is_solved_color(color, row, col-1, end))
-
-    # see if a neighbor is the same color
-    # return 3-Tuple (has_neighbor, neighbor_row, neighbor_col)
-    def has_neighbor(self, color, row, col):
-        possibilities = [(1,0), (-1,0), (0,1), (0,-1)]
-        for p in possibilities:
-            r = row - p[0]
-            c = col - p[1]
-            if self.is_in_bounds(r, c) and self.board[r][c] is not None and self.board[r][c].color == color:
-                return True, r, c
-        return False, -1, -1
 
     # see if coordinates are in bounds on the board
     def is_in_bounds(self, r, c):
