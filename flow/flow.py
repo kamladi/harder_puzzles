@@ -28,6 +28,7 @@ class FlowPuzzle(object):
         self.size = size
         # map of starting boards (from last level of game)
         self.starting_boards = {
+        2: {0: [(0,0),(1,0)], 1: [(0,1),(1,1)]},
         5: {0: [(0,0),(3,2)], 1: [(0,4),(4,2)], 2: [(2,1),(4,1)], 3: [(4,0),(2,2)]},
         6: {0: [(1,0),(3,5)], 1: [(1,1),(4,5)], 2: [(1,3),(4,4)], 3: [(2,1),(4,1)], 4: [(5,0),(3,1)]},
         7: {},
@@ -40,23 +41,51 @@ class FlowPuzzle(object):
     def make_init_board(self):
         board = [[None for _ in xrange(self.size)] for _ in xrange(self.size)]
         # randomly place end points
-        for i in self.starting_boards[self.size]:
-            for (r,c) in self.starting_boards[self.size][i]:
-                board[r][c] = EndPoint(i)
+        for color in self.starting_boards[self.size]:
+            for (r,c) in self.starting_boards[self.size][color]:
+                board[r][c] = EndPoint(color)
         return board
 
-    def is_valid_move(self, move):
-        pass
+    # see if a move is valid
+    def is_valid_move(self, color, row, col):
+        return self.is_in_bounds(row,col) and self.board[row][col] is None
+        
+    # apply a move to the board
+    def apply_move(self, color, row, col):
+        self.board[row][col] = Pipe(color)
 
-    def apply_move(self, move):
-        pass
+    # undo a move at a particular row and column
+    def undo_move(self, row, col):
+        self.board[row][col] = None
 
-    def get_valid_moves(self):
-        pass
+    # get all valid moves
+    def get_valid_moves(self, color, row, col):
+        possibilities = [(1,0), (-1,0), (0,1), (0,-1)]
 
+        moves = []
+        for r, c in possibilities:
+            if self.is_valid_move(color, row + r, col + c):
+                moves.append((color, row + r, col + c))
+                
+        return moves
+
+    # get a random move
     def get_random_move(self):
-        pass
+        # get a random move for a random color
+        color = randint(0,len(self.starting_boards[self.size])-1)
+        start, end = self.starting_boards[self.size][color]
+        while self.is_solved_color(color, start[0], start[1], end):
+            color = (color + 1) % self.size
+            start, end = self.starting_boards[self.size][color]
 
+        start_end = randint(0,1)
+        row, col = self.starting_boards[self.size][color][start_end]
+        moves = self.get_valid_moves(color, row, col)
+        print moves
+        selected = randint(0,len(moves)-1)
+        return moves[selected]
+
+    # check if board is solved
     def is_solved(self):
         # check that entire grid is not None
         for r in xrange(self.size):
@@ -66,26 +95,37 @@ class FlowPuzzle(object):
         # check that all end points are connected
         start_points = self.starting_boards[self.size]
         for color in start_points:
-            start_coord, end_coord = start_points[color]
-            cur_row, cur_col = start_coord
-            connecting = True
-            while connecting:
-                cur_row, cur_col = self.has_neighbor(color, cur_row, cur_col)
-                if cur_row < 0 and cur_col < 0:
-                    return False
-                if (cur_row, cur_col) == end_coord:
-                    connecting = False
+            start, end = start_points[color]
+            if not self.is_solved_color(color, start[0], start[1], end):
+                return False
         return True
 
+    # check if a particular color is already solved
+    # floow fill
+    def is_solved_color(self, color, row, col, end):
+        if (row, col) == end:
+            return True
+        if not self.is_in_bounds(row, col):
+            return False
+        if self.board[row][col] is None:
+            return False
+        if self.board[row][col].color != color:
+            return False
+        return (self.is_solved_color(color, row+1, col, end) or
+            self.is_solved_color(color, row-1, col, end) or
+            self.is_solved_color(color, row, col+1, end) or
+            self.is_solved_color(color, row, col-1, end))
+
     # see if a neighbor is the same color
+    # return 3-Tuple (has_neighbor, neighbor_row, neighbor_col)
     def has_neighbor(self, color, row, col):
         possibilities = [(1,0), (-1,0), (0,1), (0,-1)]
         for p in possibilities:
             r = row - p[0]
             c = col - p[1]
             if self.is_in_bounds(r, c) and self.board[r][c] is not None and self.board[r][c].color == color:
-                return r, c
-        return -1, -1
+                return True, r, c
+        return False, -1, -1
 
     # see if coordinates are in bounds on the board
     def is_in_bounds(self, r, c):
@@ -108,7 +148,10 @@ class FlowGenerator(object):
 
 n = 5
 P = FlowPuzzle(n)
+P.apply_move(2, 3, 1)
 P.print_board()
-print P.is_solved()
+(color, r, c) = P.get_random_move()
+P.apply_move(color, r, c)
+P.print_board()
 S = FlowSolver()
 G = FlowGenerator()
