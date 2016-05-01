@@ -1,4 +1,5 @@
 from random import randint
+import time
 
 # Pipe object to connect End Points
 class Pipe(object):
@@ -19,8 +20,55 @@ class EndPoint(object):
 # solve a flow board
 class FlowSolver(object):
 
-    def solve(self, board):
-        return
+    def solve(self, puzzle):
+        row, col = puzzle.starting_board[0][0]
+        solved, expanded = self.solve_color(puzzle, 0, row, col, 0)
+        if not solved:
+            return None
+        return expanded
+
+    # try to move closer to end goal, then stay on edge, make admissible --> manhattan distance - hard coded values
+    def heuristic(self, puzzle, color, row, col):
+        end_row, end_col = puzzle.starting_board[color][1]
+        dist = abs(row - end_row) + abs(col - end_col) 
+        return dist
+
+    def solve_color(self, puzzle, color, row, col, expanded):
+        start, end = puzzle.starting_board[color]
+        if puzzle.is_solved_color(color, start[0], start[1], end, set([])):
+            if color == len(puzzle.starting_board) - 1:
+                if puzzle.is_solved():
+                    return True, expanded
+                return False, expanded
+            new_row, new_col = puzzle.starting_board[color + 1][0]
+            return self.solve_color(puzzle, color + 1, new_row, new_col, expanded + 1)
+
+        next_moves = puzzle.get_valid_moves(color, row, col)
+
+        if len(next_moves) == 0:
+            return False, expanded
+        
+        h_moves = []
+        for move in next_moves:
+            color, r, c = move
+            h = self.heuristic(puzzle, color, r, c)
+            h_moves.append((h, move))
+
+        for move in sorted(h_moves):
+            color, r, c = move[1]
+            puzzle.apply_move(color, r, c)
+            solved, expanded_ret = self.solve_color(puzzle, color, r, c, expanded + 1)
+            # expanded += expanded_ret
+            if solved and color == len(puzzle.starting_board) - 1:
+                if puzzle.is_solved():
+                    return True, expanded
+                return False, expanded
+            elif solved:
+                new_row, new_col = puzzle.starting_board[color + 1][0]
+                return self.solve_color(puzzle, color + 1, new_row, new_col, expanded + 1)
+            puzzle.undo_move(r, c)
+
+        return False, expanded              
 
 # Flow board and moves
 class FlowPuzzle(object):
@@ -67,7 +115,7 @@ class FlowPuzzle(object):
         # get a random move for a random color
         color = randint(0,len(self.starting_board)-1)
         start, end = self.starting_board[color]
-        while self.is_solved_color(color, start[0], start[1], end):
+        while self.is_solved_color(color, start[0], start[1], end, set([])):
             color = (color + 1) % self.size
             start, end = self.starting_board[color]
 
@@ -88,12 +136,12 @@ class FlowPuzzle(object):
         # check that all end points are connected
         for color in self.starting_board:
             start, end = self.starting_board[color]
-            if not self.is_solved_color(color, start[0], start[1], end):
+            if not self.is_solved_color(color, start[0], start[1], end, set([])):
                 return False
         return True
 
     # check if a particular color is already solved using flood fill
-    def is_solved_color(self, color, row, col, end):
+    def is_solved_color(self, color, row, col, end, seen):
         if (row, col) == end:
             return True
         if not self.is_in_bounds(row, col):
@@ -102,10 +150,14 @@ class FlowPuzzle(object):
             return False
         if self.board[row][col].color != color:
             return False
-        return (self.is_solved_color(color, row+1, col, end) or
-            self.is_solved_color(color, row-1, col, end) or
-            self.is_solved_color(color, row, col+1, end) or
-            self.is_solved_color(color, row, col-1, end))
+        rc = str(row) + str(col)
+        if rc in seen:
+            return False
+        seen.add(rc)
+        return (self.is_solved_color(color, row+1, col, end, seen) or
+            self.is_solved_color(color, row-1, col, end, seen) or
+            self.is_solved_color(color, row, col+1, end, seen) or
+            self.is_solved_color(color, row, col-1, end, seen))
 
     # see if coordinates are in bounds on the board
     def is_in_bounds(self, r, c):
@@ -128,19 +180,21 @@ class FlowGenerator(object):
 
 starting_pos = {
     2: {0: [(0,0),(1,0)], 1: [(0,1),(1,1)]},
+    4: {0: [(1,0),(3,1)], 1: [(3,0),(1,1)]},
     5: {0: [(0,0),(3,2)], 1: [(0,4),(4,2)], 2: [(2,1),(4,1)], 3: [(4,0),(2,2)]},
     6: {0: [(1,0),(3,5)], 1: [(1,1),(4,5)], 2: [(1,3),(4,4)], 3: [(2,1),(4,1)], 4: [(5,0),(3,1)]},
-    7: {},
+    7: {0: [(0,0),(4,0)], 1: [(0,2),(0,4)], 2: [(0,5),(3,6)], 3: [(1,0),(4,2)], 4: [(1,2),(2,4)], 5: [(1,5),(3,4)], 6: [(4,1),(5,5)]},
     8: {},
     9: {}
 }
 
-n = 5
+n = 7
 P = FlowPuzzle(n, starting_pos[n])
-P.apply_move(2, 3, 1)
-P.print_board()
-(color, r, c) = P.get_random_move()
-P.apply_move(color, r, c)
-P.print_board()
 S = FlowSolver()
 G = FlowGenerator()
+start = time.time()
+S.solve(P)
+end = time.time()
+print end - start
+P.print_board()
+
