@@ -58,7 +58,7 @@ class FlowSolver(object):
             color, r, c = move[1]
             puzzle.apply_move(color, r, c)
             solved, expanded_ret = self.solve_color(puzzle, color, r, c, expanded + 1)
-            # expanded += expanded_ret
+            expanded = expanded_ret
             if solved and color == len(puzzle.starting_board) - 1:
                 if puzzle.is_solved():
                     return True, expanded
@@ -176,7 +176,30 @@ class FlowPuzzle(object):
 class FlowGenerator(object):
 
     def generate_puzzles(self, puzzle, solver, branching_factor, step, iterations):
-        return
+        generations = []
+        
+        for i in xrange(iterations):
+            print("Running Iteration %d"%(i))
+            proposals = []
+            puzzle_efficiency = solver.solve(puzzle)
+            
+            for k in xrange(branching_factor):
+                p_move = copy.deepcopy(puzzle)
+                
+                for s in xrange(step):
+                    move = p_move.getRandomMove()
+                    p_move.applyMove(move)
+                    
+                efficiency = solver.solve(p_move)
+                proposals.append((efficiency, p_move))
+                
+            generations.append((puzzle_efficiency,puzzle))
+            min_efficiency,min_puzzle = min(proposals, key=lambda s:s[0])
+            
+            if (min_efficiency <= puzzle_efficiency):
+                puzzle = min_puzzle
+            
+        return (puzzle, generations)
 
 starting_pos = {
     2: {0: [(0,0),(1,0)], 1: [(0,1),(1,1)]},
@@ -184,16 +207,16 @@ starting_pos = {
     5: {0: [(0,0),(3,2)], 1: [(0,4),(4,2)], 2: [(2,1),(4,1)], 3: [(4,0),(2,2)]},
     6: {0: [(1,0),(3,5)], 1: [(1,1),(4,5)], 2: [(1,3),(4,4)], 3: [(2,1),(4,1)], 4: [(5,0),(3,1)]},
     7: {0: [(0,0),(4,0)], 1: [(0,2),(0,4)], 2: [(0,5),(3,6)], 3: [(1,0),(4,2)], 4: [(1,2),(2,4)], 5: [(1,5),(3,4)], 6: [(4,1),(5,5)]},
-    8: {},
+    8: {0: [(0,4),(0,6)], 1: [(0,5),(3,5)], 2: [(1,4),(6,3)], 3: [(1,6),(3,6)], 4: [(2,2),(4,2)], 5: [(4,3),(6,1)], 6: [(6,2),(5,5)]},
     9: {}
 }
 
-n = 7
+n = 8
 P = FlowPuzzle(n, starting_pos[n])
 S = FlowSolver()
 G = FlowGenerator()
 start = time.time()
-S.solve(P)
+print S.solve(P)
 end = time.time()
 print end - start
 P.print_board()
