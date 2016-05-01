@@ -24,25 +24,18 @@ class FlowSolver(object):
 
 # Flow board and moves
 class FlowPuzzle(object):
-    def __init__(self, size):
+    def __init__(self, size, starting_board):
         self.size = size
         # map of starting boards (from last level of game)
-        self.starting_boards = {
-        2: {0: [(0,0),(1,0)], 1: [(0,1),(1,1)]},
-        5: {0: [(0,0),(3,2)], 1: [(0,4),(4,2)], 2: [(2,1),(4,1)], 3: [(4,0),(2,2)]},
-        6: {0: [(1,0),(3,5)], 1: [(1,1),(4,5)], 2: [(1,3),(4,4)], 3: [(2,1),(4,1)], 4: [(5,0),(3,1)]},
-        7: {},
-        8: {},
-        9: {}
-        }
+        self.starting_board = starting_board
         self.board = self.make_init_board()
 
     # create an initial board based on size
     def make_init_board(self):
         board = [[None for _ in xrange(self.size)] for _ in xrange(self.size)]
         # randomly place end points
-        for color in self.starting_boards[self.size]:
-            for (r,c) in self.starting_boards[self.size][color]:
+        for color in self.starting_board:
+            for (r,c) in self.starting_board[color]:
                 board[r][c] = EndPoint(color)
         return board
 
@@ -72,14 +65,14 @@ class FlowPuzzle(object):
     # get a random move by moving a starting or ending point
     def get_random_move(self):
         # get a random move for a random color
-        color = randint(0,len(self.starting_boards[self.size])-1)
-        start, end = self.starting_boards[self.size][color]
+        color = randint(0,len(self.starting_board)-1)
+        start, end = self.starting_board[color]
         while self.is_solved_color(color, start[0], start[1], end):
             color = (color + 1) % self.size
-            start, end = self.starting_boards[self.size][color]
+            start, end = self.starting_board[color]
 
         start_end = randint(0,1)
-        row, col = self.starting_boards[self.size][color][start_end]
+        row, col = self.starting_board[color][start_end]
         moves = self.get_valid_moves(color, row, col)
         print moves
         selected = randint(0,len(moves)-1)
@@ -93,9 +86,8 @@ class FlowPuzzle(object):
                 if self.board[r][c] is None:
                     return False
         # check that all end points are connected
-        start_points = self.starting_boards[self.size]
-        for color in start_points:
-            start, end = start_points[color]
+        for color in self.starting_board:
+            start, end = self.starting_board[color]
             if not self.is_solved_color(color, start[0], start[1], end):
                 return False
         return True
@@ -134,8 +126,17 @@ class FlowGenerator(object):
     def generate_puzzles(self, puzzle, solver, branching_factor, step, iterations):
         return
 
+starting_pos = {
+    2: {0: [(0,0),(1,0)], 1: [(0,1),(1,1)]},
+    5: {0: [(0,0),(3,2)], 1: [(0,4),(4,2)], 2: [(2,1),(4,1)], 3: [(4,0),(2,2)]},
+    6: {0: [(1,0),(3,5)], 1: [(1,1),(4,5)], 2: [(1,3),(4,4)], 3: [(2,1),(4,1)], 4: [(5,0),(3,1)]},
+    7: {},
+    8: {},
+    9: {}
+}
+
 n = 5
-P = FlowPuzzle(n)
+P = FlowPuzzle(n, starting_pos[n])
 P.apply_move(2, 3, 1)
 P.print_board()
 (color, r, c) = P.get_random_move()
