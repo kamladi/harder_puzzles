@@ -132,4 +132,6 @@ def unassign_random(grid):
 	return unassign_index(grid, index)
 
 def unassign_index(grid, index):
-	return grid[:index] + '.' + grid[index+1:]
+	gridlist = list(grid)
+	gridlist[index] = '.'
+	return ''.join(gridlist)

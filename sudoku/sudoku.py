@@ -89,27 +89,25 @@ class SudokuSolver(object):
 # Wrapper class around two forms of sudoku board generators
 class SudokuGenerator(object):
 	# Iteratively remove assignments from the grid
-	def generate_remove_assignments(self, grid, solver, multiple=False):
+	def generate_remove_assignments(self, grid, solver, unique_solution=False, num_iterations=100):
 		values, num_assignments = solver.solve(grid)
 		cur_grid = grid
-		for i,c in enumerate(cur_grid):
-			if c not in '.0':
+		for i,value in enumerate(cur_grid):
+			if value not in '.0':
 				next_grid = unassign_index(grid, i)
-
-				if multiple:
-					# If we care about multiple solutions (only counts as valid if
+				if unique_solution:
+					# If we care about unique solutions (only counts as valid if
 					# only one solution exists)
 					next_values, next_num_assignments, solutions = solver.solve_all(next_grid)
 					if len(solutions) > 1:
 						# Too many solutions, pass
-						print "%d solutions" % len(solutions)
+						continue
 					elif len(solutions) == 0:
 						# No solution, pass
 						continue
 					else:
 						# New grid has exactly one solution
-						next_values, num_assignments = solutions[0]
-						print "FOUND SOLUTION: %d vs %d" % (num_assignments, next_num_assignments)
+						next_values, next_num_assignments = solutions[0]
 				else:
 					# Don't care about multiple solution
 					next_values, next_num_assignments = solver.solve(next_grid)
@@ -145,15 +143,23 @@ if __name__ == '__main__':
 	if len(sys.argv) < 2:
 		sys.exit("Must include filename as an argument")
 
-	grids = from_file(sys.argv[1])
+	grids = []
+	filename = sys.argv[1]
+	separator = '\n'
+	if filename == 'random':
+		grids = [random_puzzle(random.randint(25, 30)) for i in xrange(50)]
+	else:
+		if filename == 'easy50.txt':
+			separator = '========'
+		grids = from_file(filename, separator)
+
 	solver = SudokuSolver()
 	generator = SudokuGenerator()
 
 	if len(sys.argv) > 2:
 		random.seed()
 
-		# random_grid = random_puzzle(NUM_ASSIGNMENTS)
-		random_grid = grids[random.randint(0, len(grids)-1)]
+		random_grid = grids[random.randint(0, len(grids)-1)].replace('\n','')
 		display_grid(random_grid)
 
 		values, num_assignments = solver.solve(random_grid)
@@ -164,16 +170,22 @@ if __name__ == '__main__':
 		if command == 'transform':
 			new_grid = generator.generate_random_transformations(random_grid, solver, 3, 50)
 
-		elif command == 'random':
-			NUM_ASSIGNMENTS = 45
+		elif command == 'remove':
+			# Mathematicians currently believe 17 is the minimum number of assignments
+			# in a sudoku board for there to be a unique solution
 			MIN_NUM_ASSIGNMENTS = 17
+			UNIQUE_SOLUTION = False
+			num_iterations = 100
 			if len(sys.argv) > 3:
-				NUM_ASSIGNMENTS = int(sys.argv[3])
+				num_iterations = int(sys.argv[3])
+
 			new_grid = random_grid
-			while True:
-				if len(list(c for c in new_grid if c not in '.0')) <= MIN_NUM_ASSIGNMENTS:
+			for k in xrange(num_iterations):
+				# Stop improving when minimum number of assignments has been reached
+				nonempty_squares = list(square for square in new_grid if square not in '.0')
+				if len(nonempty_squares) <= MIN_NUM_ASSIGNMENTS:
 					break
-				cur_grid = generator.generate_remove_assignments(new_grid, solver, False)
+				cur_grid = generator.generate_remove_assignments(new_grid, solver, UNIQUE_SOLUTION)
 				if new_grid == cur_grid:
 					break
 				new_grid = cur_grid
