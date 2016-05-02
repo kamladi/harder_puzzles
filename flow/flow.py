@@ -1,5 +1,6 @@
 from random import randint
 import time
+import copy
 
 # Pipe object to connect End Points
 class Pipe(object):
@@ -25,7 +26,7 @@ class FlowSolver(object):
         solved, expanded = self.solve_color(puzzle, 0, row, col, 0)
         if not solved:
             return None
-        return expanded
+        return -expanded
 
     # try to move closer to end goal, then stay on edge, make admissible --> manhattan distance - hard coded values
     def heuristic(self, puzzle, color, row, col):
@@ -110,21 +111,24 @@ class FlowPuzzle(object):
                 
         return moves
 
-    # get a random move by moving a starting or ending point
-    def get_random_move(self):
+    # make a random move by moving a starting or ending point
+    def make_random_move(self):
         # get a random move for a random color
-        color = randint(0,len(self.starting_board)-1)
-        start, end = self.starting_board[color]
-        while self.is_solved_color(color, start[0], start[1], end, set([])):
-            color = (color + 1) % self.size
+        moves = []
+        while len(moves) == 0:
+            color = randint(0,len(self.starting_board)-1)
             start, end = self.starting_board[color]
-
-        start_end = randint(0,1)
-        row, col = self.starting_board[color][start_end]
-        moves = self.get_valid_moves(color, row, col)
-        print moves
-        selected = randint(0,len(moves)-1)
-        return moves[selected]
+            # get either start or end point
+            start_end = randint(0,1)
+            # get the coordinates
+            row, col = self.starting_board[color][start_end]
+            # get all of the moves
+            moves = self.get_valid_moves(color, row, col)
+        self.undo_move(row, col)
+        color, row, col = moves[randint(0,len(moves)-1)]
+        # update the starting point of the end point
+        self.starting_board[color][start_end] = (row, col) 
+        self.board[row][col] = EndPoint(color)
 
     # check if board is solved
     def is_solved(self):
@@ -181,17 +185,24 @@ class FlowGenerator(object):
         for i in xrange(iterations):
             print("Running Iteration %d"%(i))
             proposals = []
-            puzzle_efficiency = solver.solve(puzzle)
+            p_move = copy.deepcopy(puzzle)
+            puzzle_efficiency = solver.solve(p_move)
+            print puzzle_efficiency
             
-            for k in xrange(branching_factor):
+            k = 0
+            while k < branching_factor:
                 p_move = copy.deepcopy(puzzle)
                 
                 for s in xrange(step):
-                    move = p_move.getRandomMove()
-                    p_move.applyMove(move)
+                    p_move.make_random_move()
                     
                 efficiency = solver.solve(p_move)
+
+                if efficiency is None:
+                    continue
+
                 proposals.append((efficiency, p_move))
+                k += 1
                 
             generations.append((puzzle_efficiency,puzzle))
             min_efficiency,min_puzzle = min(proposals, key=lambda s:s[0])
@@ -207,17 +218,15 @@ starting_pos = {
     5: {0: [(0,0),(3,2)], 1: [(0,4),(4,2)], 2: [(2,1),(4,1)], 3: [(4,0),(2,2)]},
     6: {0: [(1,0),(3,5)], 1: [(1,1),(4,5)], 2: [(1,3),(4,4)], 3: [(2,1),(4,1)], 4: [(5,0),(3,1)]},
     7: {0: [(0,0),(4,0)], 1: [(0,2),(0,4)], 2: [(0,5),(3,6)], 3: [(1,0),(4,2)], 4: [(1,2),(2,4)], 5: [(1,5),(3,4)], 6: [(4,1),(5,5)]},
-    8: {0: [(0,4),(0,6)], 1: [(0,5),(3,5)], 2: [(1,4),(6,3)], 3: [(1,6),(3,6)], 4: [(2,2),(4,2)], 5: [(4,3),(6,1)], 6: [(6,2),(5,5)]},
-    9: {}
+    8: {0: [(0,4),(0,6)], 1: [(0,5),(3,5)], 2: [(1,4),(6,3)], 3: [(1,6),(3,6)], 4: [(2,2),(4,2)], 5: [(4,3),(6,1)], 6: [(6,2),(5,5)]}
 }
 
-n = 8
+n = 4
 P = FlowPuzzle(n, starting_pos[n])
 S = FlowSolver()
 G = FlowGenerator()
-start = time.time()
-print S.solve(P)
-end = time.time()
-print end - start
-P.print_board()
+branching_factor = 1
+step = 1
+iterations = 10
+
 
